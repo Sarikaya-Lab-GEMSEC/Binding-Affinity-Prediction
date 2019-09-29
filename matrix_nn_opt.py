@@ -51,58 +51,53 @@ def p_one_hot(seq):
         letter = [0 for _ in range(len(aa))]
         letter[value] = 1
         onehot_encoded.append(letter)
-    return(torch.Tensor(np.transpose(onehot_encoded)).cuda())
+    return(torch.Tensor(np.transpose(onehot_encoded)))
     
 
 
  #initialize tensors 
-sm=Var(torch.randn(20,1),requires_grad=True).cuda() #initalize similarity matrix - random array of 20 numbers
-sm=torch.mm(sm,sm.t()) #make simalirity matrix square symmetric 
-freq_m=Var(torch.randn(12,20),requires_grad=True).cuda()
+a=Var(torch.randn(20,1),requires_grad=True) #initalize similarity matrix - random array of 20 numbers
+freq_m=Var(torch.randn(12,20),requires_grad=True)
 freq_m.data=(freq_m.data-freq_m.min().data)/(freq_m.max().data-freq_m.min().data)#0 to 1 scaling
-freq_m.data=freq_m.data/freq_m.data.sum(1,keepdim=True) #sum of each row must be 1 (sum of probabilities of each amino acid at each position)
 #loss = nn.MSELoss()   
-optimizer = optim.SGD([torch.nn.Parameter(sm), torch.nn.Parameter(freq_m)], lr=1e-4)
+optimizer = optim.SGD([torch.nn.Parameter(a), torch.nn.Parameter(freq_m)], lr=1e-4)
 #optimizer = optim.SGD([freq_m, sm], lr=1e-4)
 
 #flush error list every 100? 
 
 
 #training loop  
-print('ON GPU')
-loss = nn.MSELoss().cuda()
+loss = nn.MSELoss()
 top_s = None
 top_fm = None
+epoch_loss=[]
 for i in range(epochs): 
     print('Epoch: ' + str(i + 1))
     #forward pass    
-    error_list = [1000]
+    iteration_loss=[]
     for j, seq in enumerate(name_train):
+        sm=torch.mm(a,a.t()) #make simalirity matrix square symmetric
+        freq_m.data=freq_m.data/freq_m.data.sum(1,keepdim=True) #sum of each row must be 1 (sum of probabilities of each amino acid at each position)
         affin_score = affin_train[j]
         new_m = torch.mm(p_one_hot(seq), freq_m)
         tss_m = new_m * sm
         tss_score = tss_m.sum()
-        pred = loss(tss_score, torch.FloatTensor(torch.Tensor([affin_score])).cuda())
-        error = pow(abs(tss_score - affin_score), 2)
-        if len(error_list) == 100: 
-            error_list = [1000]
-        if error < min(error_list) and len(error_list) > 1: 
-           top_s = sm 
-           top_fm = freq_m 
-        error_list.append(error)
+        error = loss(tss_score, torch.FloatTensor(torch.Tensor([affin_score])))
+        if len(iteration_loss) == 1000:
+            iteration_loss = [1000]
+        if len(iteration_loss) > 500 and error.item() < min(iteration_loss): 
+           top_s = np.asarray(sm)
+           top_fm = np.asarray(freq_m)
+        iteration_loss.append(error.item())
         sys.stdout.flush()
-        print('On iteration ' + str(j + 1) + ' out of ' + str(len(name_train)) + '. Error: ' + str(error.item()), end='\r')
-    if len(error_list) > 1:
-        print('Lowest Error: ' + str(min(error_list)))
-    sm = top_s
-    freq_m = top_fm    
-    torch.save(sm, 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\sm')
-    torch.save(freq_m, 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\freq_m') 
-    optimizer.zero_grad()
-    pred.backward()
-    optimizer.step()
+        print('Epoch: '+str(i)+' On iteration ' + str(j + 1) + ' out of ' + str(len(name_train)) + '. Error: ' + str(error.item()), end='\r')
 
-best_sm = sm
-best_freq = freq_m
-torch.save(best_sm, 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\best_sim')
-torch.save(best_freq, 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\best_frequency') 
+        optimizer.zero_grad()
+        error.backward()
+        optimizer.step()
+        np.save('C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\sm', top_s)
+        np.save('C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\freq_m', top_fm)
+    epoch_loss.append(np.mean(iteration_loss))
+    
+torch.save(top_s, 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\best_sim')
+torch.save(top_fm, 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\best_frequency') 
