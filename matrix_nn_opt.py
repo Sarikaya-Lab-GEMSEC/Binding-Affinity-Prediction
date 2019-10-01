@@ -72,7 +72,7 @@ top_s = None
 top_fm = None
 epoch_loss=[]
 for i in range(epochs): 
-    print('Epoch: ' + str(i + 1))
+    print('Epoch: ' + str(i))
     #forward pass    
     iteration_loss=[]
     for j, seq in enumerate(name_train):
@@ -82,12 +82,14 @@ for i in range(epochs):
         new_m = torch.mm(p_one_hot(seq), freq_m)
         tss_m = new_m * sm
         tss_score = tss_m.sum()
+        sms = sm
+        fms = freq_m
         error = loss(tss_score, torch.FloatTensor(torch.Tensor([affin_score])))
         if len(iteration_loss) == 1000:
             iteration_loss = [1000]
         if len(iteration_loss) > 500 and error.item() < min(iteration_loss): 
-           top_s = np.asarray(sm)
-           top_fm = np.asarray(freq_m)
+           top_s = np.asarray(sms.detach())
+           top_fm = np.asarray(fms.detach())
         iteration_loss.append(error.item())
         sys.stdout.flush()
         print('Epoch: '+str(i)+' On iteration ' + str(j + 1) + ' out of ' + str(len(name_train)) + '. Error: ' + str(error.item()), end='\r')
