@@ -19,7 +19,8 @@ epochs = 100
 #initialize data and tensors 
 print('Initializing Data and Tensors...')
 data={}
-dirname='C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\'
+#windows dirname: 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\'
+dirname='/Users/FareedMabrouk/Desktop/Explore/Work/GEMSEC/PyTorch/Binding-Affinity-Prediction/'
 for i in [1,2,3]:
     data['set'+str(i)]=pd.read_csv(dirname+'All_peptides_Set'+str(1)+'.csv', engine='python')
     data['set'+str(i)].set_index('AA_seq',inplace=True)
@@ -71,6 +72,7 @@ loss = nn.MSELoss()
 top_s = None
 top_fm = None
 epoch_loss=[]
+minimum_error = 1000;
 for i in range(epochs): 
     print('Epoch: ' + str(i))
     #forward pass    
@@ -85,21 +87,23 @@ for i in range(epochs):
         sms = sm
         fms = freq_m
         error = loss(tss_score, torch.FloatTensor(torch.Tensor([affin_score])))
-        if len(iteration_loss) == 1000:
-            iteration_loss = [1000]
-        if len(iteration_loss) > 500 and error.item() < min(iteration_loss): 
-           top_s = np.asarray(sms.detach())
-           top_fm = np.asarray(fms.detach())
         iteration_loss.append(error.item())
-        sys.stdout.flush()
-        print('Epoch: '+str(i)+' On iteration ' + str(j + 1) + ' out of ' + str(len(name_train)) + '. Error: ' + str(error.item()), end='\r')
-
         optimizer.zero_grad()
         error.backward()
         optimizer.step()
-        np.save('C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\sm', top_s)
-        np.save('C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\freq_m', top_fm)
-    epoch_loss.append(np.mean(iteration_loss))
+        np.save(dirname + 'sm', top_s)
+        np.save(dirname + 'freq_m', top_fm)
+        if error.item() < minimum_error:
+            minimum_error = error.item()
+        if len(iteration_loss) == (20000):
+            iteration_loss.clear()
+        if len(iteration_loss) > 10000 and error.item() < min(iteration_loss, default=999): 
+           top_s = np.asarray(sms.detach())
+           top_fm = np.asarray(fms.detach())    
+        sys.stdout.flush()
+        print('Epoch: '+str(i)+' -  On iteration ' + str(j) + ' out of ' + str(len(name_train)) + '. Error: ' + str(round(error.item(), 2)) + '. Lowest Error: ' + str(round(minimum_error, 2)), end='\r')
+    print()
+    print('Completed Epoch ' + str(i) + '. Minimum error: ' + str(round(minimum_error, 2)))
+np.save(dirname + 'bestsm', top_s)
+np.save(dirname + 'best_freq', top_fm)
     
-torch.save(top_s, 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\best_sim')
-torch.save(top_fm, 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\best_frequency') 
