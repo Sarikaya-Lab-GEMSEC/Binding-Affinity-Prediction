@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Sep  7 19:20:52 2019
-
 @author: FareedMabrouk
 """
 from __future__ import print_function
@@ -30,7 +29,9 @@ for i in [1,2,3]:
     data['set'+str(i)]['Total']=data['set'+str(i)]['CE']+data['set'+str(i)]['CP1']+data['set'+str(i)]['CP2']+data['set'+str(i)]['CP3']
     data['set'+str(i)]=data['set'+str(i)][data['set'+str(i)].Total>=4]
 all_seq = pd.concat([data['set1'], data['set2'], data['set3']])
-train=all_seq.sample(frac=0.1) 
+
+train=all_seq.sample(frac=0.05) 
+
 names = train.index.values.tolist()
 affinities = train['binding_affinity']
 test=all_seq.drop(train.index)    
@@ -49,16 +50,13 @@ def p_one_hot(seq):
         onehot_encoded.append(letter)
     return(torch.Tensor(np.transpose(onehot_encoded)))
    
-
- #initialize tensors 
+#initialize tensors 
 a=Var(torch.randn(20,1),requires_grad=True) #initalize similarity matrix - random array of 20 numbers
 freq_m=Var(torch.randn(12,20),requires_grad=True)
 freq_m.data=(freq_m.data-freq_m.min().data)/(freq_m.max().data-freq_m.min().data)#0 to 1 scaling
 #loss = nn.MSELoss()   
 optimizer = optim.SGD([torch.nn.Parameter(a), torch.nn.Parameter(freq_m)], lr=1e-4)
 #optimizer = optim.SGD([freq_m, sm], lr=1e-4)
-
-#try training with 10 percent, figure how long it's going to take, if it takes about 3 days, test that then run it on 90 percent of the set 
 
 #training loop  
 loss = nn.MSELoss()
@@ -78,7 +76,6 @@ for i in range(epochs):
         new_m = torch.mm(p_one_hot(seq), freq_m)
         tss_m = new_m * sm
         tss_score = tss_m.sum()
-        #^ needs to fit affinity trend 
         sms = sm
         fms = freq_m
         error = loss(tss_score, torch.FloatTensor(torch.Tensor([affin_score])))
@@ -99,6 +96,6 @@ for i in range(epochs):
     torch.save(freq_m, dirname + 'frequency_to_test10percent')
     with open("iteration_loss", "wb") as fp:   #Pickling
         pickle.dump(iteration_loss, fp)
-    print('Last Error: ' + str(iteration_loss[-1]))
+    print('Last Error: ' + str(avg_loss[-1]))
 np.save(dirname + 'bestsm1', top_s)
 np.save(dirname + 'best_freq1', top_fm)
