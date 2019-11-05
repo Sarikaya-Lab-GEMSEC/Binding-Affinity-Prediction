@@ -97,6 +97,6 @@ for i in range(epochs):
     torch.save(freq_m, dirname + 'frequency_to_test10percent')
     with open("iteration_loss", "wb") as fp:   #Pickling
         pickle.dump(iteration_loss, fp)
-    print('Last Error: ' + str(avg_loss))
+    print('Last Error: ' + str(avg_loss[-1]))
 np.save(dirname + 'bestsm1', top_s)
 np.save(dirname + 'best_freq1', top_fm)
