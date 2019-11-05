@@ -13,28 +13,23 @@ import torch.nn as nn
 import numpy as np 
 import sys
 import pickle
+import statistics 
 
 epochs = 100
 
 #initialize data and tensors 
 print('Initializing Data and Tensors...')
 data={}
-#windows dirname: 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\'
-#mac dirname: /Users/FareedMabrouk/Desktop/Explore/Work/GEMSEC/PyTorch/Binding-Affinity-Prediction/
-#ubuntu dirname: /home/gromacs/Desktop/Fareed_Training_Loop
-dirname='/home/gromacs/Desktop/Fareed_Training_Loop/'
+windows = 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\'
+mac = '/Users/FareedMabrouk/Desktop/Explore/Work/GEMSEC/PyTorch/Binding-Affinity-Prediction/'
+ubuntu = '/home/gromacs/Desktop/Binding-Affinity-Prediction/'
+dirname = ubuntu
 for i in [1,2,3]:
     data['set'+str(i)]=pd.read_csv(dirname+'All_peptides_Set'+str(1)+'.csv', engine='python')
     data['set'+str(i)].set_index('AA_seq',inplace=True)
     data['set'+str(i)]['Total']=data['set'+str(i)]['CE']+data['set'+str(i)]['CP1']+data['set'+str(i)]['CP2']+data['set'+str(i)]['CP3']
     data['set'+str(i)]=data['set'+str(i)][data['set'+str(i)].Total>=4]
-all_seq = pd.concat([data['set1'], data['set2'], data['set3']])
-
-train=all_seq.sample(frac=0.05) 
-
-names = train.index.values.tolist()
-affinities = train['binding_affinity']
-test=all_seq.drop(train.index)    
+all_seq = pd.concat([data['set1'], data['set2'], data['set3']]) 
 
 #one hot encoding
 AA=['A','R','N','D','C','Q','E','G','H','I','L','K','M','F','P','S','T','W','Y','V']
@@ -55,7 +50,7 @@ a=Var(torch.randn(20,1),requires_grad=True) #initalize similarity matrix - rando
 freq_m=Var(torch.randn(12,20),requires_grad=True)
 freq_m.data=(freq_m.data-freq_m.min().data)/(freq_m.max().data-freq_m.min().data)#0 to 1 scaling
 #loss = nn.MSELoss()   
-optimizer = optim.SGD([torch.nn.Parameter(a), torch.nn.Parameter(freq_m)], lr=1e-4)
+optimizer = optim.SGD([torch.nn.Parameter(a), torch.nn.Parameter(freq_m)], lr=1e-6)
 #optimizer = optim.SGD([freq_m, sm], lr=1e-4)
 
 #training loop  
@@ -64,8 +59,10 @@ top_s = None
 top_fm = None
 avg_loss = []
 epoch_loss=[]
-minimum_error = 1000;
 for i in range(epochs): 
+    train = all_seq.sample(frac=.03)
+    names = train.index.values.tolist()
+    affinities = train['binding_affinity']
     print('Epoch: ' + str(i))
     #forward pass    
     iteration_loss=[]
@@ -83,19 +80,21 @@ for i in range(epochs):
         optimizer.zero_grad()
         error.backward()
         optimizer.step()
-        i_length = len(iteration_loss)
-        i_sum = sum(iteration_loss)
-        if i_length == (20000):
-            avg_loss.append(i_sum / i_length)
-            iteration_loss.clear()
-        if i_length > 10000 and error.item() < min(iteration_loss, default=999): 
-           top_s = np.asarray(sms.detach())
-           top_fm = np.asarray(fms.detach())
-        sys.stdout.flush()
+        # i_length = len(iteration_loss)
+        # i_sum = sum(iteration_loss)
+        # if i_length == (20000):
+        #     avg_loss.append(i_sum / i_length)
+        #     iteration_loss.clear()
+        # if i_length > 10000 and error.item() < min(iteration_loss, default=999): 
+        #    top_s = np.asarray(sms.detach())
+        #    top_fm = np.asarray(fms.detach())
+    mean = statistics.mean(iteration_loss)
+    stdev = statistics.stdev(iteration_loss)       
     torch.save(sm, dirname + 'similarity_to_test_10percent')
     torch.save(freq_m, dirname + 'frequency_to_test10percent')
-    with open("iteration_loss", "wb") as fp:   #Pickling
-        pickle.dump(iteration_loss, fp)
-    print('Last Error: ' + str(avg_loss[-1]))
+    # with open("iteration_loss", "wb") as fp:
+    #     pickle.dump(iteration_loss, fp)
+    print('Epoch Average Error: ' + str(mean) + '. Epoch Standard Deviation: ' + str(stdev))
+    iteration_loss.clear()
 np.save(dirname + 'bestsm1', top_s)
 np.save(dirname + 'best_freq1', top_fm)
