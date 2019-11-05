@@ -22,13 +22,14 @@ data={}
 #windows dirname: 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\'
 #mac dirname: /Users/FareedMabrouk/Desktop/Explore/Work/GEMSEC/PyTorch/Binding-Affinity-Prediction/
 #ubuntu dirname: /home/gromacs/Desktop/Fareed_Training_Loop
-dirname='/Users/FareedMabrouk/Desktop/Explore/Work/GEMSEC/PyTorch/Binding-Affinity-Prediction/'
+dirname='/home/gromacs/Desktop/Fareed_Training_Loop/'
 for i in [1,2,3]:
     data['set'+str(i)]=pd.read_csv(dirname+'All_peptides_Set'+str(1)+'.csv', engine='python')
     data['set'+str(i)].set_index('AA_seq',inplace=True)
     data['set'+str(i)]['Total']=data['set'+str(i)]['CE']+data['set'+str(i)]['CP1']+data['set'+str(i)]['CP2']+data['set'+str(i)]['CP3']
     data['set'+str(i)]=data['set'+str(i)][data['set'+str(i)].Total>=4]
 all_seq = pd.concat([data['set1'], data['set2'], data['set3']])
+
 train=all_seq.sample(frac=0.05) 
 
 names = train.index.values.tolist()
@@ -49,7 +50,6 @@ def p_one_hot(seq):
         onehot_encoded.append(letter)
     return(torch.Tensor(np.transpose(onehot_encoded)))
    
-
 #initialize tensors 
 a=Var(torch.randn(20,1),requires_grad=True) #initalize similarity matrix - random array of 20 numbers
 freq_m=Var(torch.randn(12,20),requires_grad=True)
@@ -57,7 +57,6 @@ freq_m.data=(freq_m.data-freq_m.min().data)/(freq_m.max().data-freq_m.min().data
 #loss = nn.MSELoss()   
 optimizer = optim.SGD([torch.nn.Parameter(a), torch.nn.Parameter(freq_m)], lr=1e-4)
 #optimizer = optim.SGD([freq_m, sm], lr=1e-4)
-
 
 #training loop  
 loss = nn.MSELoss()
