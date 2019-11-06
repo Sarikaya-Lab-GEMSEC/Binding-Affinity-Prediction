@@ -23,7 +23,7 @@ data={}
 windows = 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\'
 mac = '/Users/FareedMabrouk/Desktop/Explore/Work/GEMSEC/PyTorch/Binding-Affinity-Prediction/'
 ubuntu = '/home/gromacs/Desktop/Binding-Affinity-Prediction/'
-dirname = ubuntu
+dirname = mac
 for i in [1,2,3]:
     data['set'+str(i)]=pd.read_csv(dirname+'All_peptides_Set'+str(1)+'.csv', engine='python')
     data['set'+str(i)].set_index('AA_seq',inplace=True)
