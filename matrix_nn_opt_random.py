@@ -14,8 +14,10 @@ import numpy as np
 import sys
 import pickle
 import statistics 
+import scipy.stats
 
 epochs = 100
+
 
 #initialize data and tensors 
 print('Initializing Data and Tensors...')
@@ -50,15 +52,19 @@ a=Var(torch.randn(20,1),requires_grad=True) #initalize similarity matrix - rando
 freq_m=Var(torch.randn(12,20),requires_grad=True)
 freq_m.data=(freq_m.data-freq_m.min().data)/(freq_m.max().data-freq_m.min().data)#0 to 1 scaling
 #loss = nn.MSELoss()   
-optimizer = optim.SGD([torch.nn.Parameter(a), torch.nn.Parameter(freq_m)], lr=1e-6)
+optimizer = optim.SGD([a, freq_m], lr=1e-4)
 #optimizer = optim.SGD([freq_m, sm], lr=1e-4)
+
+trend_line = []
+for i in range(10000):
+    trend_line.append(-1 * pow(i, 3))
 
 #training loop  
 loss = nn.MSELoss()
 top_s = None
 top_fm = None
 avg_loss = []
-epoch_loss=[]
+all_error = []
 for i in range(epochs): 
     train = all_seq.sample(frac=.03)
     names = train.index.values.tolist()
@@ -76,25 +82,25 @@ for i in range(epochs):
         sms = sm
         fms = freq_m
         error = loss(tss_score, torch.FloatTensor(torch.Tensor([affin_score])))
-        iteration_loss.append(error.item())
+        curr_error = error.item()
+        iteration_loss.append(curr_error)
+        all_error.append(curr_error)
         optimizer.zero_grad()
         error.backward()
         optimizer.step()
-        # i_length = len(iteration_loss)
-        # i_sum = sum(iteration_loss)
-        # if i_length == (20000):
-        #     avg_loss.append(i_sum / i_length)
-        #     iteration_loss.clear()
-        # if i_length > 10000 and error.item() < min(iteration_loss, default=999): 
-        #    top_s = np.asarray(sms.detach())
-        #    top_fm = np.asarray(fms.detach())
+    trend_line = []
+    for i in range(len(iteration_loss)):
+        trend_line.append(-1 * pow(i, 3))    
+    sp_correlation = scipy.stats.spearmanr(trend_line, iteration_loss)[0]
     mean = statistics.mean(iteration_loss)
     stdev = statistics.stdev(iteration_loss)       
-    torch.save(sm, dirname + 'similarity_to_test_10percent')
-    torch.save(freq_m, dirname + 'frequency_to_test10percent')
-    # with open("iteration_loss", "wb") as fp:
-    #     pickle.dump(iteration_loss, fp)
-    print('Epoch Average Error: ' + str(mean) + '. Epoch Standard Deviation: ' + str(stdev))
-    iteration_loss.clear()
-np.save(dirname + 'bestsm1', top_s)
-np.save(dirname + 'best_freq1', top_fm)
+    torch.save(sm, dirname + 'similarity_matrix_tensor')
+    torch.save(freq_m, dirname + 'frequency_matrix_tensor')
+    np.save(dirname + 'best_similary_np', sm.detach().numpy())
+    np.save(dirname + 'best_frequency_np', freq_m.detach().numpy())
+    with open("all_errors", "wb") as fp:
+        pickle.dump(all_error, fp)
+    print('Average Error: ' + str(mean))
+    print('Standard Deviation: ' + str(stdev))
+    print('Spearmans Rank Correlation: ' + str(sp_correlation))
+print('Training Completed')
