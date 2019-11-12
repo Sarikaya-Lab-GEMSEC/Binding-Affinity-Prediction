@@ -11,10 +11,10 @@ from torch.autograd import Variable as Var
 import torch.optim as optim
 import torch.nn as nn
 import numpy as np 
-import sys
 import pickle
 import statistics 
 import scipy.stats
+from sklearn.model_selection import train_test_split
 
 epochs = 100
 
@@ -24,15 +24,12 @@ print('Initializing Data and Tensors...')
 data={}
 windows = 'C:\\Users\\GEMSEC-User\\Desktop\\Fareed_Training_Loop\\'
 mac = '/Users/FareedMabrouk/Desktop/Explore/Work/GEMSEC/PyTorch/Binding-Affinity-Prediction/'
-ubuntu = '/home/gromacs/Desktop/Binding-Affinity-Prediction/'
-dirname = mac
-for i in [1,2,3]:
-    data['set'+str(i)]=pd.read_csv(dirname+'All_peptides_Set'+str(1)+'.csv', engine='python')
-    data['set'+str(i)].set_index('AA_seq',inplace=True)
-    data['set'+str(i)]['Total']=data['set'+str(i)]['CE']+data['set'+str(i)]['CP1']+data['set'+str(i)]['CP2']+data['set'+str(i)]['CP3']
-    data['set'+str(i)]=data['set'+str(i)][data['set'+str(i)].Total>=4]
-all_seq = pd.concat([data['set1'], data['set2'], data['set3']]) 
+ubuntu1 = '/home/gromacs/Desktop/Binding-Affinity-Prediction/'
+ubuntu2 = '/home/jonathan/Desktop/Binding-Affinity-Prediction/'
+dirname = ubuntu2
 
+all_seq = pd.read_pickle('all_peptide_sequences.pkl')
+train_seq, test_seq = train_test_split(all_seq, test_size=0.2)
 #one hot encoding
 AA=['A','R','N','D','C','Q','E','G','H','I','L','K','M','F','P','S','T','W','Y','V']
 loc=['N','2','3','4','5','6','7','8','9','10','11','C']
@@ -53,20 +50,15 @@ freq_m=Var(torch.randn(12,20),requires_grad=True)
 freq_m.data=(freq_m.data-freq_m.min().data)/(freq_m.max().data-freq_m.min().data)#0 to 1 scaling
 #loss = nn.MSELoss()   
 optimizer = optim.SGD([a, freq_m], lr=1e-4)
+loss = nn.MSELoss()
 #optimizer = optim.SGD([freq_m, sm], lr=1e-4)
 
-trend_line = []
-for i in range(10000):
-    trend_line.append(-1 * pow(i, 3))
-
 #training loop  
-loss = nn.MSELoss()
-top_s = None
-top_fm = None
+
 avg_loss = []
 all_error = []
 for i in range(epochs): 
-    train = all_seq.sample(frac=.03)
+    train = train_seq.sample(frac=.03)
     names = train.index.values.tolist()
     affinities = train['binding_affinity']
     print('Epoch: ' + str(i))
@@ -81,7 +73,8 @@ for i in range(epochs):
         tss_score = tss_m.sum()
         sms = sm
         fms = freq_m
-        error = loss(tss_score, torch.FloatTensor(torch.Tensor([affin_score])))
+        #error = loss(tss_score, torch.FloatTensor(torch.Tensor([affin_score])))
+        error = abs(tss_score - torch.FloatTensor(torch.Tensor([affin_score])))
         curr_error = error.item()
         iteration_loss.append(curr_error)
         all_error.append(curr_error)
@@ -104,3 +97,4 @@ for i in range(epochs):
     print('Standard Deviation: ' + str(stdev))
     print('Spearmans Rank Correlation: ' + str(sp_correlation))
 print('Training Completed')
+
